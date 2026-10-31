@@ -1,0 +1,244 @@
+<title>The Backrooms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=Permanent+Marker&display=swap">
+<style>
+/* Layout: full-bleed first-person view; a VHS camcorder HUD hugs the frame edges; menus sit left-aligned over the dimmed scene. */
+:root {
+  --bg: #0b0903;
+  --fg: #ece3b4;
+  --accent: #d8c452;
+  --mute: #8d8250;
+  --alert: #ff4b3a;
+  --ok: #7dffa5;
+  --panel: rgba(12, 10, 3, 0.78);
+  --font-display: "Anton", "Arial Narrow", Impact, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-marker: "Permanent Marker", Impact, cursive;
+  --danger: 0;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-mono); overflow: hidden; -webkit-user-select: none; user-select: none; }
+#app { position: relative; height: 100%; overflow: hidden; background: var(--bg); }
+#stage { position: absolute; inset: 0; }
+#view { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* camera-tape overlays */
+.fx { position: absolute; inset: 0; pointer-events: none; }
+#vig { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 42%, rgba(0,0,0,0.88) 100%); }
+#redvig { background: radial-gradient(ellipse at center, rgba(120,0,0,0) 35%, rgba(150,10,0,0.9) 100%); opacity: calc(var(--danger) * 0.75); transition: opacity 0.2s; }
+#scan { background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.06) 3px); mix-blend-mode: multiply; }
+#grain { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; mix-blend-mode: overlay; opacity: 0.07; pointer-events: none; }
+#tint { background: rgba(255, 220, 90, 0.05); mix-blend-mode: screen; }
+#scare { background: radial-gradient(circle, rgba(255,40,20,0.0) 20%, rgba(190,0,0,0.85) 100%); opacity: 0; }
+#scare.on { opacity: 1; animation: scareflash 0.12s steps(2) 8; }
+@keyframes scareflash { 50% { background: rgba(255,255,255,0.55); } }
+
+/* HUD */
+#hud { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.4s; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; text-shadow: 0 0 6px rgba(0,0,0,0.9); }
+#hud.on { opacity: 1; }
+.hud-pad { position: absolute; left: 0; right: 0; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.hud-top { top: 16px; }
+.hud-bot { bottom: 18px; align-items: flex-end; }
+#rec { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #f2eac0; }
+#rec i { width: 10px; height: 10px; border-radius: 50%; background: var(--alert); animation: blink 1.1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+#tc { font-variant-numeric: tabular-nums; color: #f2eac0; }
+#objective { text-align: right; color: var(--accent); max-width: 52vw; line-height: 1.5; }
+.meters { display: grid; gap: 10px; width: min(240px, 44vw); }
+.meter { display: grid; gap: 4px; }
+.meter b { font-weight: 500; font-size: 11px; color: var(--mute); display: flex; justify-content: space-between; }
+.bar { height: 6px; background: rgba(236, 227, 180, 0.14); border: 1px solid rgba(236, 227, 180, 0.35); }
+.bar > i { display: block; height: 100%; background: var(--accent); transform-origin: left center; }
+.bar > i.low { background: var(--alert); animation: blink 0.5s steps(2) infinite; }
+#fuseBox { font-family: var(--font-display); font-size: 40px; letter-spacing: 0.06em; line-height: 1; color: var(--ok); }
+#fuseBox small { font-family: var(--font-mono); font-size: 11px; color: var(--mute); display: block; letter-spacing: 0.1em; margin-bottom: 4px; }
+#hint { position: absolute; left: 0; right: 0; bottom: 22%; text-align: center; font-size: 15px; color: #fff3b8; opacity: 0; transition: opacity 0.5s; padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+#hint.on { opacity: 1; }
+#prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 7px 14px; font-size: 14px; letter-spacing: 0.14em; color: #14110a; background: rgba(236, 227, 180, 0.92); opacity: 0; transition: opacity 0.15s; text-shadow: none; white-space: nowrap; }
+#prompt.on { opacity: 1; }
+#cross { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: rgba(255,248,200,0.55); }
+#compass { position: absolute; left: 50%; top: 58px; width: 48px; height: 48px; margin-left: -24px; opacity: 0; transition: opacity 0.4s; }
+#compass.on { opacity: 1; }
+#arrow { position: absolute; inset: 0; display: grid; place-items: center; }
+#arrow::before { content: ""; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 30px solid var(--ok); filter: drop-shadow(0 0 6px rgba(125,255,165,0.7)); }
+.frame-corners::before, .frame-corners::after { content: ""; position: absolute; width: 26px; height: 26px; border: 2px solid rgba(236,227,180,0.55); }
+.frame-corners::before { left: 10px; top: 10px; border-right: 0; border-bottom: 0; }
+.frame-corners::after { right: 10px; bottom: 10px; border-left: 0; border-top: 0; }
+
+/* menus */
+#overlay { position: absolute; inset: 0; display: none; align-items: center; background: linear-gradient(90deg, rgba(6,5,1,0.92) 0%, rgba(6,5,1,0.7) 55%, rgba(6,5,1,0.35) 100%); }
+#overlay.show { display: flex; }
+.panel { width: min(560px, 100%); padding-block: 28px; padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px)); max-height: 100%; overflow-y: auto; }
+.kicker { font-size: 12px; letter-spacing: 0.22em; color: var(--mute); text-transform: uppercase; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(54px, 12vw, 116px); line-height: 0.92; letter-spacing: 0.01em; text-transform: uppercase; color: #f0e49a; margin: 10px 0 16px; text-wrap: balance; text-shadow: 3px 0 rgba(255,60,40,0.55), -3px 0 rgba(60,200,255,0.4); }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(44px, 9vw, 78px); line-height: 0.95; margin: 8px 0 14px; text-transform: uppercase; text-wrap: balance; }
+h2.bad { color: var(--alert); text-shadow: 3px 0 rgba(255,255,255,0.15); }
+h2.good { color: var(--ok); }
+.lede { font-size: 14px; line-height: 1.7; color: #d4c98e; max-width: 46ch; margin: 0 0 18px; }
+.scrawl { font-family: var(--font-marker); font-size: 22px; color: #b3382a; transform: rotate(-2deg); display: inline-block; margin: 0 0 18px; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin: 0 0 22px; max-width: 420px; }
+.keys kbd { font-family: var(--font-mono); font-weight: 600; color: #14110a; background: var(--accent); padding: 1px 7px; justify-self: start; }
+.keys span { color: #cfc487; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 14px; }
+.btn { font-family: var(--font-mono); font-weight: 600; font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: #14110a; background: var(--accent); border: 0; padding: 14px 26px; cursor: pointer; }
+.btn:hover { background: #ecd965; }
+.btn:focus-visible, .chip:focus-visible, .tbtn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.chip { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg); background: transparent; border: 1px solid rgba(236,227,180,0.4); padding: 8px 14px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: rgba(216,196,82,0.2); border-color: var(--accent); color: var(--accent); }
+.stat { display: flex; gap: 28px; margin: 0 0 22px; }
+.stat div { font-size: 11px; letter-spacing: 0.16em; color: var(--mute); text-transform: uppercase; }
+.stat b { display: block; font-family: var(--font-display); font-weight: 400; font-size: 34px; letter-spacing: 0.04em; color: var(--fg); margin-top: 4px; }
+
+/* touch controls */
+#touch { position: absolute; inset: 0; pointer-events: none; }
+#touch .tbtn { pointer-events: auto; position: absolute; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; border-radius: 50%; border: 2px solid rgba(236,227,180,0.5); background: rgba(12,10,3,0.5); color: var(--fg); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; }
+#tRun { right: max(24px, env(safe-area-inset-right, 0px)); }
+#tLight { right: calc(max(24px, env(safe-area-inset-right, 0px)) + 86px); }
+#tJump { right: max(24px, env(safe-area-inset-right, 0px)); bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important; }
+#tCrouch { right: calc(max(24px, env(safe-area-inset-right, 0px)) + 86px); bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important; }
+#tCrouch[aria-pressed="true"] { background: rgba(216,196,82,0.3); }
+#tUse { right: calc(max(24px, env(safe-area-inset-right, 0px)) + 172px); }
+
+#chat { position: absolute; left: 16px; bottom: 132px; width: min(420px, 70vw); font-size: 13px; line-height: 1.45; z-index: 6; pointer-events: none; }
+#chat .line { padding: 2px 8px; margin-top: 2px; background: rgba(0,0,0,0.42); color: var(--fg); opacity: 1; transition: opacity 1.2s; word-break: break-word; }
+#chat .line b { color: #fff3b8; font-weight: 600; } #chat .line.me b { color: #9fe0a8; }
+#chat .line.old { opacity: 0; } #chat.open .line.old { opacity: 1; }
+#chatIn { pointer-events: auto; width: 100%; margin-top: 6px; box-sizing: border-box; font-family: var(--font-mono); font-size: 13px; color: var(--fg); background: rgba(0,0,0,0.7); border: 1px solid var(--accent); padding: 8px 10px; }
+#minimap { position: absolute; right: 16px; top: 84px; width: 230px; height: 230px; border: 1px solid rgba(216,196,82,0.6); background: #0b0a05; opacity: 0; transition: opacity 0.25s; pointer-events: none; image-rendering: auto; }
+#minimap.on { opacity: 0.92; }
+#hotbar { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; }
+#hotbar .slot { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; color: rgba(236,227,180,0.35); background: rgba(0,0,0,0.45); border: 1px solid rgba(236,227,180,0.25); padding: 7px 12px; cursor: pointer; }
+#hotbar .slot kbd { color: #14110a; background: rgba(216,196,82,0.4); padding: 0 5px; margin-right: 7px; }
+#hotbar .slot.have { color: var(--fg); border-color: rgba(236,227,180,0.6); } #hotbar .slot.have kbd { background: var(--accent); }
+#hotbar .slot.active { border-color: var(--accent); background: rgba(216,196,82,0.2); }
+#chat .line.sys { background: rgba(0,0,0,0.3); font-size: 12px; }
+#netList { position: absolute; left: 16px; top: 74px; font-size: 12px; letter-spacing: 0.1em; color: var(--mute); line-height: 1.6; pointer-events: none; }
+#netList b { color: #fff3b8; font-weight: 600; } #netList .dead { color: #c4604e; text-decoration: line-through; }
+.field { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg); background: rgba(0,0,0,0.35); border: 1px solid rgba(236,227,180,0.4); padding: 9px 12px; width: 9em; }
+#coopMsg { font-size: 12px; color: var(--mute); letter-spacing: 0.06em; }
+#boot { position: absolute; inset: 0; background: var(--bg); display: grid; place-items: center; font-size: 13px; letter-spacing: 0.3em; color: var(--mute); transition: opacity 0.6s; z-index: 20; }
+#boot.done { opacity: 0; pointer-events: none; }
+@media (max-width: 560px) { .hud-top, .hud-bot { flex-wrap: wrap; } #objective { max-width: 100%; text-align: left; } #fuseBox { font-size: 30px; } }
+@media (prefers-reduced-motion: reduce) { #rec i, .bar > i.low { animation: none; } #scare.on { animation: none; } }
+</style>
+
+<div id="app">
+  <div id="stage"></div>
+  <div id="tint" class="fx"></div>
+  <div id="redvig" class="fx"></div>
+  <div id="vig" class="fx"></div>
+  <div id="scan" class="fx"></div>
+  <canvas id="grain"></canvas>
+  <div id="scare" class="fx"></div>
+
+  <div id="hud" aria-live="polite">
+    <div class="fx frame-corners"></div>
+    <div class="hud-pad hud-top">
+      <div>
+        <div id="rec"><i></i>REC <span id="tc">00:00:00:00</span></div>
+        <div style="margin-top:6px;color:var(--mute)">LEVEL 0 · <span id="lightState">LIGHT ON</span></div>
+      </div>
+      <div id="objective">FIND FUSES 0 / 3</div>
+    </div>
+    <div id="compass"><div id="arrow"></div></div>
+    <div id="cross"></div>
+    <div id="netList"></div>
+    <canvas id="minimap" width="287" height="287" aria-label="Map"></canvas>
+    <div id="hotbar"><button class="slot" id="slotMap" type="button"><kbd>1</kbd>MAP</button><button class="slot" id="slotMed" type="button"><kbd>2</kbd>MEDKIT <b id="medN">0</b></button></div>
+    <div id="chat"><div id="chatLog"></div><input id="chatIn" maxlength="120" autocomplete="off" spellcheck="false" aria-label="Chat message" placeholder="message — Enter to send, Esc to cancel" hidden></div>
+    <div id="hint"></div>
+    <div id="prompt"></div>
+    <div class="hud-pad hud-bot">
+      <div class="meters">
+        <div class="meter"><b>STAMINA</b><div class="bar"><i id="stamFill"></i></div></div>
+        <div class="meter"><b>BATTERY</b><div class="bar"><i id="batFill"></i></div></div>
+      </div>
+      <div id="fuseBox"><small>FUSES</small><span id="fuseN">0</span> / 3</div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <section class="panel" id="pTitle">
+      <div class="kicker">Tape 07 · Level 0 · Do not rewind</div>
+      <h1>The<br>Backrooms</h1>
+      <p class="scrawl">don't run unless you have to.</p>
+      <p class="lede">Damp carpet, buzzing lights, yellow wallpaper in every direction. Three dead fuses are scattered through the rooms. Carry them back to power the exit. Something tall is walking the halls, and it listens for footsteps.</p>
+      <div class="keys" id="keysDesk">
+        <kbd>WASD</kbd><span>move</span>
+        <kbd>SHIFT</kbd><span>run (it hears you, stamina drains)</span>
+        <kbd>F</kbd><span>flashlight (battery is limited)</span>
+        <kbd>E</kbd><span>open doors, search beds and drawers</span>
+        <kbd>SPACE</kbd><span>jump</span>
+        <kbd>C</kbd><span>hold to crouch (quieter, slower)</span>
+        <kbd>ENTER</kbd><span>chat with your co-op team</span>
+        <kbd>G</kbd><span>fullscreen</span>
+        <kbd>BODY</kbd><span>walk into chairs and bins to shove them</span>
+        <kbd>MOUSE</kbd><span>look · ESC pauses · M mutes</span>
+      </div>
+      <div class="row"><button class="btn" id="btnStart" type="button">Enter</button><button class="chip" id="muteBtn" type="button">SOUND ON</button><button class="chip" id="btnFs" type="button">Fullscreen</button></div>
+      <div class="row"><span class="kicker" style="margin-right:4px">Name</span><input class="field" id="nick" maxlength="10" autocomplete="off" spellcheck="false" aria-label="Nickname" placeholder="nickname" style="text-transform:none"></div>
+      <div class="row" id="coopRow"><span class="kicker" style="margin-right:4px">Co-op</span><input class="field" id="coopCode" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Co-op code" placeholder="code"><button class="chip" id="btnCoop" type="button">Join co-op</button><span id="coopMsg">same code = same level, play together</span></div>
+      <div class="row"><span class="kicker" style="margin-right:4px">Quality</span><button class="chip" data-q="high" type="button" aria-pressed="true">High</button><button class="chip" data-q="low" type="button" aria-pressed="false">Low</button></div>
+      <div class="kicker" style="margin-top:18px">Headphones recommended</div>
+    </section>
+
+    <section class="panel" id="pPause" hidden>
+      <div class="kicker">Tape paused</div>
+      <h2>Paused</h2>
+      <p class="lede">The hum keeps going whether you do or not.</p>
+      <div class="row"><button class="btn" id="btnResume" type="button">Resume</button><button class="chip" id="btnFs2" type="button">Fullscreen</button><button class="chip" id="btnMenu" type="button">Main menu</button></div>
+    </section>
+
+    <section class="panel" id="pDead" hidden>
+      <div class="kicker">Tape ends</div>
+      <h2 class="bad">It found you</h2>
+      <div class="stat"><div>Survived<b id="deadTime">00:00:00</b></div><div>Fuses<b id="deadFuse">0 / 3</b></div></div>
+      <p class="scrawl">the halls rearrange themselves.</p><br>
+      <button class="btn" id="btnRetry" type="button">Try a new level</button>
+    </section>
+
+    <section class="panel" id="pWin" hidden>
+      <div class="kicker">Signal restored</div>
+      <h2 class="good">You noclipped out</h2>
+      <div class="stat"><div>Time<b id="winTime">00:00:00</b></div><div>Battery left<b id="winBat">0%</b></div></div>
+      <p class="lede">The door opens onto daylight. Behind you the hum stops, then starts again for someone else.</p>
+      <button class="btn" id="btnAgain" type="button">Play again</button>
+    </section>
+  </div>
+
+  <div id="touch" hidden>
+    <button class="tbtn" id="tUse" type="button">USE</button>
+    <button class="tbtn" id="tLight" type="button">LIGHT</button>
+    <button class="tbtn" id="tRun" type="button">RUN</button>
+    <button class="tbtn" id="tJump" type="button">JUMP</button>
+    <button class="tbtn" id="tCrouch" type="button" aria-pressed="false">DUCK</button>
+  </div>
+  <div id="boot">LOADING TAPE…</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="js/maze.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/props.js"></script>
+<script src="js/rooms.js"></script>
+<script src="js/world.js"></script>
+<script src="js/post.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/rtc.js"></script>
+<script src="js/net.js"></script>
+<script src="js/game.js"></script>
+<script>
+  if (window.THREE && window.BR && BR.boot) BR.boot();
+  else document.getElementById('boot').textContent = 'COULD NOT LOAD THE GAME ENGINE. RELOAD THE PAGE.';
+</script>
